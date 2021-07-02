@@ -43,6 +43,7 @@ struct TestRecord {
     tt: String,
     #[serde(default)]
     nm: String,
+    #[serde(default)]
     ma: String,
     sc: String,
     #[serde(default)]
