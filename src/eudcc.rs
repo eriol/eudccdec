@@ -27,6 +27,17 @@ struct Vaccine {
 }
 
 #[derive(Debug, Deserialize)]
+struct Recovery {
+    tg: String,
+    fr: String,
+    co: String,
+    is: String,
+    df: String,
+    du: String,
+    ci: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct Name {
     #[serde(rename = "fn")]
     fn_: String,
@@ -41,6 +52,8 @@ pub struct Certificate {
     dob: String,
     #[serde(default)]
     v: Vec<Vaccine>,
+    #[serde(default)]
+    r: Vec<Recovery>,
     ver: String,
 }
 
