@@ -13,7 +13,7 @@ const HCERT_CLAIM_KEY: i128 = -260;
 const DCC: i128 = 1;
 
 #[derive(Debug, Deserialize, PartialEq)]
-struct Vaccine {
+struct VaccineRecord {
     tg: String,
     vp: String,
     mp: String,
@@ -27,7 +27,7 @@ struct Vaccine {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-struct Recovery {
+struct RecoveryRecord {
     tg: String,
     fr: String,
     co: String,
@@ -52,9 +52,9 @@ pub struct Certificate {
     nam: Name,
     dob: String,
     #[serde(default)]
-    v: Vec<Vaccine>,
+    v: Vec<VaccineRecord>,
     #[serde(default)]
-    r: Vec<Recovery>,
+    r: Vec<RecoveryRecord>,
 }
 
 pub fn decode(data: String) -> Result<Certificate> {
@@ -110,7 +110,7 @@ fn decode_vaccination_test() {
             gnt: "MARILU<TERESA".to_string(),
         },
         dob: "1977-06-16".to_string(),
-        v: vec![Vaccine {
+        v: vec![VaccineRecord {
             tg: "840539006".to_string(),
             vp: "1119349007".to_string(),
             mp: "EU/1/20/1528".to_string(),
@@ -145,7 +145,7 @@ fn decode_recovery_test() {
         },
         dob: "1977-06-16".to_string(),
         v: vec![],
-        r: vec![Recovery {
+        r: vec![RecoveryRecord {
             tg: "840539006".to_string(),
             fr: "2021-05-02".to_string(),
             co: "IT".to_string(),
