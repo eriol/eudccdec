@@ -39,6 +39,7 @@ struct Name {
 pub struct Certificate {
     nam: Name,
     dob: String,
+    #[serde(default)]
     v: Vec<Vaccine>,
     ver: String,
 }
