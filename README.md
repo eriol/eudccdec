@@ -1,4 +1,4 @@
-# eudccdec
+# eudccdec - EU Digital COVID Certificate decoder
 
 eudccdec is a decoder for EU Digital COVID Certificate (EUDCC), written in 
 Rust and released under the GPLv3 license.
@@ -14,13 +14,15 @@ It ignores COSE signing and it extracts the EUDCC payload to show data about:
 ❯ cargo install --branch main --git https://noa.mornie.org/eriol/eudccdec
 ```
 
+Note that `❯` is my shell prompt, you don't have to write it.
+
 ## Usage
 
 In the following example `curl` and `zbarimg` are used, to install them on a
 Debian based system use `sudo apt install curl zbar-tools`.
 
 ```
-❯ curl -sL https://github.com/eu-digital-green-certificates/dgc-testdata/blob/main/IT/png/1.png | \
+❯ curl -sL https://github.com/eu-digital-green-certificates/dgc-testdata/raw/main/IT/png/1.png | \
   zbarimg --quiet --raw - | eudccdec
 Certificate {
     ver: "1.0.0",
