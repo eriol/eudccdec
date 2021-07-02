@@ -14,16 +14,16 @@ const DCC: i128 = 1;
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct Vaccine {
-    ci: String,
-    co: String,
-    dn: i32,
-    dt: String,
-    is: String,
-    ma: String,
-    mp: String,
-    sd: i32,
     tg: String,
     vp: String,
+    mp: String,
+    ma: String,
+    dn: i32,
+    sd: i32,
+    dt: String,
+    co: String,
+    is: String,
+    ci: String,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -111,16 +111,16 @@ fn decode_vaccination_test() {
         },
         dob: "1977-06-16".to_string(),
         v: vec![Vaccine {
-            ci: "01ITE7300E1AB2A84C719004F103DCB1F70A#6".to_string(),
-            co: "IT".to_string(),
-            dn: 2,
-            dt: "2021-04-10".to_string(),
-            is: "IT".to_string(),
-            ma: "ORG-100030215".to_string(),
-            mp: "EU/1/20/1528".to_string(),
-            sd: 2,
             tg: "840539006".to_string(),
             vp: "1119349007".to_string(),
+            mp: "EU/1/20/1528".to_string(),
+            ma: "ORG-100030215".to_string(),
+            dn: 2,
+            sd: 2,
+            dt: "2021-04-10".to_string(),
+            co: "IT".to_string(),
+            is: "IT".to_string(),
+            ci: "01ITE7300E1AB2A84C719004F103DCB1F70A#6".to_string(),
         }],
         r: vec![],
     };
