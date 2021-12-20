@@ -3,7 +3,7 @@ name = "eudccdec"
 version = "0.1.0"
 authors = ["Daniele Tricoli <eriol@mornie.org>"]
 license="GPL-3.0-only"
-edition = "2018"
+edition = "2021"
 
 
 [dependencies]
