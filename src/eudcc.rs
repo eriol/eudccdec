@@ -1,18 +1,24 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::fmt;
 use std::io::Read;
 
 use anyhow::{bail, Result};
 use base45;
+use ciborium::{de::from_reader, value::Value};
 use flate2::read::ZlibDecoder;
-use serde_cbor::value::from_value;
-use serde_cbor::{from_slice, Value};
-use serde_derive::Deserialize;
+use serde::de::{self, Deserializer, MapAccess, Visitor};
+use serde::Deserialize;
 
+const CLAIM_KEY_DCCV1: usize = 1; // EU Digital Covid Certificate v1
+const CLAIM_KEY_EXPIRETION_TIME: i16 = 4;
+const CLAIM_KEY_HCERT: i16 = -260;
+const CLAIM_KEY_ISSUED_AT: i16 = 6;
+const CLAIM_KEY_ISSUER: i16 = 1;
+const COSE_SIGN1_TAG: u64 = 18;
 const HC1_FIELD: &str = "HC1:";
-const HCERT_CLAIM_KEY: i128 = -260;
-const DCC: i128 = 1;
+const PAYLOAD_POSITION: usize = 2;
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 struct VaccineRecord {
     tg: String,
     vp: String,
@@ -26,7 +32,7 @@ struct VaccineRecord {
     ci: String,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 struct RecoveryRecord {
     tg: String,
     fr: String,
@@ -37,7 +43,7 @@ struct RecoveryRecord {
     ci: String,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 struct TestRecord {
     tg: String,
     tt: String,
@@ -55,7 +61,7 @@ struct TestRecord {
     ci: String,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 struct Name {
     #[serde(rename = "fn")]
     fn_: String,
@@ -64,7 +70,7 @@ struct Name {
     gnt: String,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Certificate {
     ver: String,
     nam: Name,
@@ -75,6 +81,98 @@ pub struct Certificate {
     r: Vec<RecoveryRecord>,
     #[serde(default)]
     t: Vec<TestRecord>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Payload {
+    pub expires_at: u64,
+    pub issued_at: u64,
+    pub issuer: String,
+    pub certs: HashMap<usize, Certificate>,
+}
+
+impl<'de> Deserialize<'de> for Payload {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct PayloadVisitor;
+
+        impl<'de> Visitor<'de> for PayloadVisitor {
+            type Value = Payload;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("struct Payload")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Payload, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut issued_at = None;
+                let mut issuer = None;
+                let mut expires_at = None;
+                let mut certs = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        CLAIM_KEY_ISSUER => {
+                            if issuer.is_some() {
+                                return Err(de::Error::duplicate_field(
+                                    "issuer",
+                                ));
+                            }
+                            issuer = Some(map.next_value()?);
+                        }
+                        CLAIM_KEY_ISSUED_AT => {
+                            if issued_at.is_some() {
+                                return Err(de::Error::duplicate_field(
+                                    "issued_at",
+                                ));
+                            }
+                            issued_at = Some(map.next_value()?);
+                        }
+                        CLAIM_KEY_EXPIRETION_TIME => {
+                            if expires_at.is_some() {
+                                return Err(de::Error::duplicate_field(
+                                    "expires_at",
+                                ));
+                            }
+                            expires_at = Some(map.next_value()?);
+                        }
+                        CLAIM_KEY_HCERT => {
+                            if certs.is_some() {
+                                return Err(de::Error::duplicate_field(
+                                    "certs",
+                                ));
+                            }
+                            certs = Some(map.next_value()?);
+                        }
+                        _ => {
+                            // Ignore the rest.
+                        }
+                    }
+                }
+                let issuer =
+                    issuer.ok_or_else(|| de::Error::missing_field("issuer"))?;
+                let issued_at = issued_at
+                    .ok_or_else(|| de::Error::missing_field("issued_at"))?;
+                let expires_at = expires_at
+                    .ok_or_else(|| de::Error::missing_field("expire_at"))?;
+                let certs =
+                    certs.ok_or_else(|| de::Error::missing_field("certs"))?;
+                Ok(Payload {
+                    issuer,
+                    issued_at,
+                    expires_at,
+                    certs,
+                })
+            }
+        }
+
+        const FIELDS: &'static [&'static str] = &["issuer", "issued_at"];
+        deserializer.deserialize_struct("Payload", FIELDS, PayloadVisitor)
+    }
 }
 
 pub fn decode(data: String) -> Result<Certificate> {
@@ -91,25 +189,23 @@ pub fn decode(data: String) -> Result<Certificate> {
     let mut cbor_data = Vec::new();
     zlibdecoder.read_to_end(&mut cbor_data)?;
 
-    let (_header1, _header2, payload, _signature): (
-        &[u8],
-        BTreeMap<String, Value>,
-        &[u8],
-        &[u8],
-    ) = from_slice(&cbor_data)?;
-    let payload: Value = from_slice(&payload)?;
-
-    if let Value::Map(m) = payload {
-        if let Some(health_certificate) =
-            m.get(&Value::Integer(HCERT_CLAIM_KEY))
-        {
-            if let Value::Map(m) = health_certificate {
-                if let Some(eudccv1) = m.get(&Value::Integer(DCC)) {
-                    let cert: Certificate = from_value(eudccv1.clone())?;
-                    return Ok(cert);
-                }
+    if let Value::Tag(COSE_SIGN1_TAG, content) =
+        ciborium::de::from_reader(&cbor_data[..])?
+    {
+        if let Value::Array(arr) = *content {
+            // We have 4 part of a CBOR Web Token:
+            // 1. protected header;
+            // 2. unprotected header;
+            // 3. payload;
+            // 4. signature.
+            if let Value::Bytes(p) = &arr[PAYLOAD_POSITION] {
+                let p: Payload = from_reader(&p[..])?;
+                let cert = p.certs[&CLAIM_KEY_DCCV1].clone();
+                return Ok(cert);
             }
         }
+    } else {
+        bail!("Not a COSE Single Signer Data Object Tag!")
     }
 
     bail!("Can't decode the EU Digital COVID Certificate payload!");
