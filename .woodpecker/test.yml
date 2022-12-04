@@ -1,9 +1,6 @@
 ---
-kind: pipeline
-type: docker
-name: default
-steps:
-  - name: test
+pipeline:
+  test:
     image: rust:1.57
     commands:
       - cargo build --verbose
