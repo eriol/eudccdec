@@ -1,7 +1,0 @@
----
-pipeline:
-  test:
-    image: rust:1.57
-    commands:
-      - cargo build --verbose
-      - cargo test --verbose
